@@ -17,6 +17,9 @@ local TARGET_PREFIX = {
     OTHERS = '@others'
 }
 
+-- OPTIMIZATION: Pre-define party member keys to avoid string concatenation in loops
+local PARTY_KEYS = {'p0', 'p1', 'p2', 'p3', 'p4', 'p5'}
+
 windower.register_event('addon command', function(target, ...)
     if not target then
         error('No target provided.')
@@ -125,23 +128,24 @@ windower.register_event('ipc message', function (msg)
     if not player then return end
     
     local player_name_lower = player.name:lower()
+    local player_job_lower = player.main_job:lower()
     local target_lower = target:lower()
 
     if target_lower == player_name_lower then
         execute_command(command)
-    elseif target:startswith('@') then
-        local arg = target:sub(2):lower()
+    elseif target_lower:startswith('@') then
+        local arg = target_lower:sub(2)
 
-        if arg == player.main_job:lower() or arg == TARGET_PREFIX.ALL:sub(2) or arg == TARGET_PREFIX.OTHERS:sub(2) then
+        if arg == player_job_lower or arg == TARGET_PREFIX.ALL:sub(2) or arg == TARGET_PREFIX.OTHERS:sub(2) then
             execute_command(command)
         elseif arg:startswith('party') then
             local sender = arg:sub(6, #arg):lower()
             local party = windower.ffxi.get_party()
             
-            -- OPTIMIZATION: Iterate party members more efficiently
-            -- Pre-build party indices: p0-p5 instead of string concat in loop
-            for i = 0, 5 do
-                local member = party['p' .. i]
+            -- OPTIMIZATION: Iterate party members with pre-built keys to avoid string concat
+            -- Check all 6 party slots (p0-p5) using PARTY_KEYS constant
+            for _, key in ipairs(PARTY_KEYS) do
+                local member = party[key]
                 if member and member.name:lower() == sender then
                     execute_command(command)
                     return
